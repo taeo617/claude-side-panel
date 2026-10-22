@@ -6,8 +6,18 @@ import type { Snapshot } from '../types'
 const PANE = 'side-panel'
 const notes = atom({ plugin: 'side-panel', key: 'notes' } as const, [])
 const snap = atom({ plugin: 'side-panel', key: 'snap' } as const, null)
+const permMode = atom({ plugin: 'side-panel', key: 'permMode' } as const, null as string | null)
 
 const MODE_ROW = /mode|model|effort/i
+
+const MODE_TONE: Record<string, string> = {
+  plan: 'cyan',
+  acceptEdits: 'green',
+  auto: 'yellow',
+  bypassPermissions: 'red',
+  dontAsk: 'magenta',
+  default: 'gray',
+}
 
 async function refresh($: any) {
   const u = await $.session.usage()
@@ -73,10 +83,28 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // The permission mode is not a /config row; each classic event carries it on e.
+  on('classic.UserPromptSubmit', async ($, e: any, next) => {
+    await update($, permMode, () => (typeof e.permission_mode === 'string' ? e.permission_mode : null))
+
+    return next(e)
+  })
+  on('classic.PostToolUse', async ($, e: any, next) => {
+    await update($, permMode, () => (typeof e.permission_mode === 'string' ? e.permission_mode : null))
+
+    return next(e)
+  })
+  on('classic.Stop', async ($, e: any, next) => {
+    await update($, permMode, () => (typeof e.permission_mode === 'string' ? e.permission_mode : null))
+
+    return next(e)
+  })
+
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button, Input } = $.ui.resolve(e)
     const list = await read($, notes)
     const s = await read($, snap)
+    const mode = await read($, permMode)
 
     const bar = (pct: number, width: number) => {
       const full = Math.max(0, Math.min(width, Math.round((pct / 100) * width)))
@@ -115,6 +143,13 @@ export const register: Register = on => {
 
         <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={1}>
           <Text bold color="magenta">MODE <Text dimColor>click to switch</Text></Text>
+          <Text>
+            PERMISSION{' '}
+            <Text bold color={mode ? MODE_TONE[mode] ?? 'white' : 'gray'}>
+              {mode ?? 'unknown yet'}
+            </Text>{' '}
+            <Text dimColor>Shift+Tab to change</Text>
+          </Text>
           {s !== null && s.rows.length === 0 && <Text dimColor>no mode rows found</Text>}
           {s?.rows.map(r => (
             <Box flexDirection="column" marginTop={1}>
