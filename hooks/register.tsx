@@ -33,6 +33,19 @@ const LIMIT_LABEL: Record<string, string> = {
   seven_day: '7일 한도',
 }
 
+// "14:30" when the reset is today, else "10/25 14:30".
+const resetAt = (iso?: string) => {
+  if (!iso) return '알 수 없음'
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  const hm = `${p(d.getHours())}:${p(d.getMinutes())}`
+  const now = new Date()
+  const isToday =
+    d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+
+  return isToday ? hm : `${d.getMonth() + 1}/${d.getDate()} ${hm}`
+}
+
 async function refresh($: any) {
   const u = await $.session.usage()
   const rows = (await $.config.list())
@@ -48,7 +61,7 @@ async function refresh($: any) {
     window: u.context.window,
     percent: u.context.percent ?? null,
     usd: u.cost?.usd ?? null,
-    limits: u.rateLimits.map((l: any) => ({ kind: l.kind, percentUsed: l.percentUsed })),
+    limits: u.rateLimits.map((l: any) => ({ kind: l.kind, percentUsed: l.percentUsed, resetsAt: l.resetsAt })),
     rows,
   }
   await update($, snap, () => next)
@@ -136,21 +149,26 @@ export const register: Register = on => {
             <Text dimColor>불러오는 중…</Text>
           ) : (
             <Box flexDirection="column">
-              <Text>
-                <Text color={tone(s.percent ?? 0)}>{bar(s.percent ?? 0, width)}</Text> {s.percent ?? '?'}%
-              </Text>
-              <Text dimColor>
-                토큰 {fmt(s.tokens ?? 0)} / {fmt(s.window)}
-              </Text>
-              {s.usd !== null && <Text>비용 <Text bold>${s.usd.toFixed(2)}</Text></Text>}
+              <Text bold>플랜 사용한도</Text>
+              {s.limits.length === 0 && <Text dimColor>아직 값이 없어요</Text>}
               {s.limits.map(l => (
                 <Box flexDirection="column">
-                  <Text dimColor>{LIMIT_LABEL[l.kind] ?? l.kind}</Text>
                   <Text>
-                    <Text color={tone(l.percentUsed)}>{bar(l.percentUsed, width)}</Text> {l.percentUsed}%
+                    {LIMIT_LABEL[l.kind] ?? l.kind} <Text bold color={tone(l.percentUsed)}>{l.percentUsed}%</Text>
                   </Text>
+                  <Text color={tone(l.percentUsed)}>{bar(l.percentUsed, width)}</Text>
+                  <Text dimColor>리셋 {resetAt(l.resetsAt)}</Text>
                 </Box>
               ))}
+
+              <Box flexDirection="column" marginTop={1}>
+                <Text bold>컨텍스트 {s.percent ?? '?'}%</Text>
+                <Text color={tone(s.percent ?? 0)}>{bar(s.percent ?? 0, width)}</Text>
+                <Text dimColor>
+                  토큰 {fmt(s.tokens ?? 0)} / {fmt(s.window)}
+                </Text>
+              </Box>
+              {s.usd !== null && <Text>비용 <Text bold>${s.usd.toFixed(2)}</Text></Text>}
             </Box>
           )}
         </Box>

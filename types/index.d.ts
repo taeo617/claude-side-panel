@@ -3,7 +3,7 @@ export type Snapshot = {
   window: number
   percent: number | null
   usd: number | null
-  limits: { kind: string; percentUsed: number }[]
+  limits: { kind: string; percentUsed: number; resetsAt?: string }[]
   rows: { key: string; label: string; value: string; options: string[] }[]
 }
 
