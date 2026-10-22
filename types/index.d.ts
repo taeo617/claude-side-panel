@@ -4,6 +4,8 @@ export type Snapshot = {
   percent: number | null
   usd: number | null
   limits: { kind: string; percentUsed: number; resetsAt?: string }[]
+  cats: { name: string; tokens: number }[]
+  max: number
   rows: { key: string; label: string; value: string; options: string[] }[]
 }
 
