@@ -9,6 +9,6 @@ export type Snapshot = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'side-panel': { notes: string[]; snap: Snapshot | null; permMode: string | null }
+    'side-panel': { notes: string[]; snap: Snapshot | null; permMode: string | null; base: Record<string, number> }
   }
 }

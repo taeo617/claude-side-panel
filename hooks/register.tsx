@@ -6,6 +6,7 @@ import type { Snapshot } from '../types'
 const PANE = 'side-panel'
 const notes = atom({ plugin: 'side-panel', key: 'notes' } as const, [])
 const snap = atom({ plugin: 'side-panel', key: 'snap' } as const, null)
+const base = atom({ plugin: 'side-panel', key: 'base' } as const, {} as Record<string, number>)
 const permMode = atom({ plugin: 'side-panel', key: 'permMode' } as const, null as string | null)
 
 const MODE_ROW = /mode|model|effort/i
@@ -65,6 +66,10 @@ async function refresh($: any) {
     rows,
   }
   await update($, snap, () => next)
+  // First reading of each rate-limit window is this session's starting point.
+  const known = await read($, base)
+  const fresh = next.limits.filter(l => !(l.kind in known))
+  if (fresh.length) await update($, base, b => ({ ...b, ...Object.fromEntries(fresh.map(l => [l.kind, l.percentUsed])) }))
 }
 
 async function pick($: any, key: string, value: string) {
@@ -132,6 +137,7 @@ export const register: Register = on => {
     const list = await read($, notes)
     const s = await read($, snap)
     const mode = await read($, permMode)
+    const start = await read($, base)
 
     const bar = (pct: number, width: number) => {
       const full = Math.max(0, Math.min(width, Math.round((pct / 100) * width)))
@@ -157,18 +163,21 @@ export const register: Register = on => {
                     {LIMIT_LABEL[l.kind] ?? l.kind} <Text bold color={tone(l.percentUsed)}>{l.percentUsed}%</Text>
                   </Text>
                   <Text color={tone(l.percentUsed)}>{bar(l.percentUsed, width)}</Text>
+                  <Text>
+                    이 세션 <Text bold color="cyan">+{Math.max(0, +(l.percentUsed - (start[l.kind] ?? l.percentUsed)).toFixed(1))}%p</Text>
+                  </Text>
                   <Text dimColor>리셋 {resetAt(l.resetsAt)}</Text>
                 </Box>
               ))}
 
               <Box flexDirection="column" marginTop={1}>
-                <Text bold>컨텍스트 {s.percent ?? '?'}%</Text>
+                <Text bold>이 세션 컨텍스트 {s.percent ?? '?'}%</Text>
                 <Text color={tone(s.percent ?? 0)}>{bar(s.percent ?? 0, width)}</Text>
                 <Text dimColor>
                   토큰 {fmt(s.tokens ?? 0)} / {fmt(s.window)}
                 </Text>
               </Box>
-              {s.usd !== null && <Text>비용 <Text bold>${s.usd.toFixed(2)}</Text></Text>}
+              {s.usd !== null && <Text>이 세션 비용 <Text bold>${s.usd.toFixed(2)}</Text></Text>}
             </Box>
           )}
         </Box>
