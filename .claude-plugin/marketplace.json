@@ -1,0 +1,5 @@
+{
+  "name": "my-mods",
+  "owner": { "name": "fafaai" },
+  "plugins": [{ "name": "side-panel", "source": "./" }]
+}

@@ -1,0 +1,1 @@
+{ "name": "side-panel", "version": "0.1.0", "description": "Right-side pane: notes, token/usage, and click-to-switch mode buttons", "types": "./types/index.d.ts", "license": "MIT" }
