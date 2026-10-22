@@ -19,6 +19,20 @@ const MODE_TONE: Record<string, string> = {
   default: 'gray',
 }
 
+const MODE_LABEL: Record<string, string> = {
+  default: '기본',
+  acceptEdits: '편집 자동 승인',
+  plan: '계획 모드',
+  auto: '자동 판단',
+  dontAsk: '묻지 않음',
+  bypassPermissions: '모든 권한 허용',
+}
+
+const LIMIT_LABEL: Record<string, string> = {
+  five_hour: '5시간 한도',
+  seven_day: '7일 한도',
+}
+
 async function refresh($: any) {
   const u = await $.session.usage()
   const rows = (await $.config.list())
@@ -42,7 +56,7 @@ async function refresh($: any) {
 
 async function pick($: any, key: string, value: string) {
   const r = await $.config.set({ key, value })
-  if ('deny' in r && r.deny) $.ui.toast(`Cannot change: ${r.deny}`)
+  if ('deny' in r && r.deny) $.ui.toast(`변경할 수 없어요: ${r.deny}`)
   await refresh($)
 }
 async function addNote($: any, text: string) {
@@ -63,8 +77,8 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const saved = await $.store.get('notes')
     if (Array.isArray(saved)) await update($, notes, () => saved as string[])
-    await $.command.register({ name: 'side-panel', description: 'Open the notes / usage / mode pane' })
-    void $.ui.open({ id: PANE, title: 'Panel' })
+    await $.command.register({ name: 'side-panel', description: '메모, 사용량, 모드 패널 열기' })
+    void $.ui.open({ id: PANE, title: '패널' })
     await refresh($)
     $.clock.every(5000, () => void refresh($))
 
@@ -72,9 +86,9 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'side-panel' }, async $ => {
-    await $.ui.open({ id: PANE, title: 'Panel' })
+    await $.ui.open({ id: PANE, title: '패널' })
 
-    return { text: 'Panel opened.' }
+    return { text: '패널을 열었어요.' }
   })
 
   on('turn.complete', async ($, e, next) => {
@@ -117,21 +131,21 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
-          <Text bold color="cyan">USAGE</Text>
+          <Text bold color="cyan">사용량</Text>
           {s === null ? (
-            <Text dimColor>loading…</Text>
+            <Text dimColor>불러오는 중…</Text>
           ) : (
             <Box flexDirection="column">
               <Text>
                 <Text color={tone(s.percent ?? 0)}>{bar(s.percent ?? 0, width)}</Text> {s.percent ?? '?'}%
               </Text>
               <Text dimColor>
-                {fmt(s.tokens ?? 0)} / {fmt(s.window)} tokens
+                토큰 {fmt(s.tokens ?? 0)} / {fmt(s.window)}
               </Text>
-              {s.usd !== null && <Text>cost <Text bold>${s.usd.toFixed(2)}</Text></Text>}
+              {s.usd !== null && <Text>비용 <Text bold>${s.usd.toFixed(2)}</Text></Text>}
               {s.limits.map(l => (
                 <Box flexDirection="column">
-                  <Text dimColor>{l.kind}</Text>
+                  <Text dimColor>{LIMIT_LABEL[l.kind] ?? l.kind}</Text>
                   <Text>
                     <Text color={tone(l.percentUsed)}>{bar(l.percentUsed, width)}</Text> {l.percentUsed}%
                   </Text>
@@ -142,15 +156,15 @@ export const register: Register = on => {
         </Box>
 
         <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={1}>
-          <Text bold color="magenta">MODE <Text dimColor>click to switch</Text></Text>
+          <Text bold color="magenta">모드 <Text dimColor>버튼을 눌러 변경</Text></Text>
           <Text>
-            PERMISSION{' '}
+            권한{' '}
             <Text bold color={mode ? MODE_TONE[mode] ?? 'white' : 'gray'}>
-              {mode ?? 'unknown yet'}
+              {mode ? `${MODE_LABEL[mode] ?? mode} (${mode})` : '아직 없음'}
             </Text>{' '}
-            <Text dimColor>Shift+Tab to change</Text>
+            <Text dimColor>Shift+Tab으로 변경</Text>
           </Text>
-          {s !== null && s.rows.length === 0 && <Text dimColor>no mode rows found</Text>}
+          {s !== null && s.rows.length === 0 && <Text dimColor>바꿀 수 있는 항목이 없어요</Text>}
           {s?.rows.map(r => (
             <Box flexDirection="column" marginTop={1}>
               <Text dimColor>{r.label}</Text>
@@ -170,15 +184,15 @@ export const register: Register = on => {
         </Box>
 
         <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
-          <Text bold color="yellow">NOTES <Text dimColor>({list.length})</Text></Text>
-          {list.length === 0 && <Text dimColor>no notes yet</Text>}
+          <Text bold color="yellow">메모 <Text dimColor>({list.length})</Text></Text>
+          {list.length === 0 && <Text dimColor>아직 메모가 없어요</Text>}
           {list.map((n, i) => (
             <Box flexDirection="row" justifyContent="space-between" gap={1}>
               <Text>• {n}</Text>
               <Button key={`del${i}`} plain onPress={() => void removeNote($, i)}>✕</Button>
             </Box>
           ))}
-          <Input key="note" placeholder="type a note, Enter to add" submitLabel="add" onSubmit={t => void addNote($, t)} />
+          <Input key="note" placeholder="메모를 입력하고 Enter" submitLabel="추가" onSubmit={t => void addNote($, t)} />
         </Box>
       </Box>
     )
